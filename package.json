@@ -1,0 +1,16 @@
+{
+  "name": "business-testing",
+  "private": true,
+  "scripts": {
+    "build": "slidev build",
+    "dev": "slidev --open",
+    "serve": "slidev",
+    "export": "slidev export"
+  },
+  "dependencies": {
+    "@iconify-json/mdi": "latest",
+    "@slidev/cli": "latest",
+    "@slidev/theme-default": "latest",
+    "postcss": "latest"
+  }
+}

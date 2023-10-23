@@ -1,0 +1,6 @@
+div.attribution {
+    @apply absolute;
+    @apply bottom-1em;
+    @apply right-1em;
+    @apply text-8pt;
+}
