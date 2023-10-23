@@ -212,7 +212,7 @@ background: /images/cinnamon-buns.jpg
 
 ---
 
-<video src="videos/coding-dynamodb.mp4" controls />
+<video src="/videos/coding-dynamodb.mp4" controls />
 
 ---
 
