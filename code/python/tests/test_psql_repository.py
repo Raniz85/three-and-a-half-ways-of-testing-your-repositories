@@ -25,7 +25,5 @@ def test_that_psql_repository_stores_pastry_correctly(psql_connection):
     # When the pastry is stored
     repo.store(pastry)
 
-    # Then the correct row exists in the database
-    with psql_connection.cursor() as cursor:
-        cursor.execute("SELECT EXISTS( SELECT 1 FROM pastry WHERE type = 'Cinnamon Bun' AND amount = 24)")
-        assert cursor.fetchone()[0]
+    # Then it can be retrieved again
+    assert repo.get("Cinnamon Bun") == pastry

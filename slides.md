@@ -78,7 +78,7 @@ image: /images/Domain_Driven_Design-EricEvans.jpg
 
 # Domain Driven Design
 
-- Divide the business into _boundedDALL·E 2023-10-21 13.45.06 - Illustration in anime style displaying an expansive view of a university lecture hall. The bearded male software developer is seen from afar, gesturin contexts_
+- Divide the business into _bounded contexts_
 - Focus on the core _domain_ of each bounded context and it's logic
 - Ongoing collaboration with domain experts
 - Model software after the domain, using the same language
@@ -120,6 +120,12 @@ image: /images/Domain_Driven_Design-EricEvans.jpg
 ![](/images/developer-presenting.png)
 
 ---
+layout: center
+---
+
+# Domain?
+
+---
 layout: cover
 background: /images/cinnamon-buns.jpg
 ---
@@ -150,7 +156,7 @@ background: /images/cinnamon-buns.jpg
 
 <div v-click class="absolute right-200px bottom-30px">
   <img class="mx-auto" src="/images/Postgresql_elephant.svg" width="150" />
-  JdbcPastryRepository
+  PsqlPastryRepository
 </div>
 
 ---
@@ -178,7 +184,7 @@ background: /images/cinnamon-buns.jpg
 ---
 
 <SlidevVideo controls>
-  <source src="/videos/coding-s3.mp4" controls />
+  <source src="/videos/python-s3.mp4" controls />
 </SlidevVideo>
 
 ---
@@ -194,6 +200,7 @@ background: /images/cinnamon-buns.jpg
 - Tightly tied to implementation
 - Configuring mocks produces noise
 - Test data probably needs to be hand-crafted in code
+- Dynamic mocks hide API errors
 
 
 ---
@@ -212,7 +219,7 @@ background: /images/cinnamon-buns.jpg
 
 ---
 
-<video src="/videos/coding-dynamodb.mp4" controls />
+<video src="/videos/python-dynamodb.mp4" controls />
 
 ---
 
@@ -244,11 +251,9 @@ layout: center
 
 <v-clicks>
 
-```java
-try (var connection = dataSource.getConnection();
-     var statement = connection.createStatement()) {
-    statement.execute("INSERT INTO pastries (type, amount) VALUES ('Cinnamon Bun', 24)");
-}
+```python
+using connection.cursor() as cursor:
+    cursor.execute("INSERT INTO pastries (type, amount) VALUES ('Cinnamon Bun', 24)")
 ```
 
 </v-clicks>
@@ -256,76 +261,64 @@ try (var connection = dataSource.getConnection();
 
 ---
 
-# Mocking JDBC
+# Mocking Psycopg
 
-```java
-@Test
-void thatStoringPastryInsertsIt() throws IOException, SQLException {
-    // Given a pastry repository with a mocked datasource
-    when(dataSource.getConnection())
-            .thenReturn(connection);
-    when(connection.createStatement())
-            .thenReturn(statement);
-    var repo = new JdbcPastryRepository(dataSource);
-    
-    // and a pastry to store
-    var pastry = new Pastry("Cinnamon Bun", 24);
+```python {all|3|15,16|15}
+def test_that_pastry_is_stored_correctly():
+    # Given a mock of a postgres connection
+    connection = MagicMock()
 
-    // when the pastry is stored in the repository
-    repo.store(pastry);
+    # Given a psql repository
+    repo = PsqlPastryRepository(connection)
 
-    // then a row with 24 cinnamon rolls is stored in the database
-    verify(statement).execute("INSERT INTO pastries (type, amount) VALUES ('Cinnamon Bun', 24)");
-}
+    # and a pastry to store
+    pastry = Pastry("Cinnamon Bun", 24)
+
+    # When the pastry is stored
+    repo.store(pastry)
+
+    # Then the correct row exists in the database
+    connection.cursor.return_value.__enter__.return_value.execute.assert_called_with(
+      "INSERT INTO pastry (type, amount) VALUES ('Cinnamon Bun', 24)")
 ```
 
 ---
-clicks: 4
+clicks: 3
 ---
 
-# Refactorings
+# Refactoring
 
-<ul>
+<ul class="!list-none">
+
 <li v-click="1">
- Quoting
 
-  ```sql
-  INSERT INTO "pastries" ("type", "amount") VALUES ('Cinnamon Bun', 24);
+  <em>Parameters</em>
+
+  ```python
+  with self.connection.cursor() as cursor:
+      cursor.execute("INSERT INTO pastry (type, amount) VALUES (%s, %s)", (pastry.type, pastry.amount))
   ```
 
-  <div v-click="2" class="mt-1">
-
-  ```
-  Argument(s) are different! Wanted:
-  statement.execute(
-      "INSERT INTO pastries (type, amount) VALUES ('Cinnamon Bun', 24)"
-  );
-  -> at repos.MockJdbcPastryRepositoryTest.testStorePastry(MockJdbcPastryRepositoryTest.java:46)
-  Actual invocations have different arguments:
-  statement.execute(
-      "INSERT INTO "pastries" ("type", "amount") VALUES ('Cinnamon Bun', 24)"
-  )
-  ```
-  
-  </div>
 </li>
-<li v-click="3"><em>PreparedStatement</em>
+<li v-click="2">
 
-  ```java
-  var statement = connection.prepareStatement("INSERT INTO pastries (type, amount) VALUES (?, ?)"));
-  statement.setString(1, pastry.type());
-  statement.setInt(2, pastry.amount());
-  statement.execute();
+<em>Quoting</em>
+
+  ```python
+  with self.connection.cursor() as cursor:
+      cursor.execute("INSERT INTO \"pastry\" (\"type\", \"amount\") VALUES ('{pastry.type}', {pastry.amount})")
   ```
 
-  <div v-click="4" class="mt-1">
-
-  ```
-  java.lang.NullPointerException: Cannot invoke "java.sql.PreparedStatement.setString(int, String)" because "statement" is null
-  ```
-
-  </div>
 </li>
+<li v-click="3" class="mt-5">
+
+```
+E           Expected: execute("INSERT INTO pastry (type, amount) VALUES ('Cinnamon Bun', 24)")
+E           Actual: execute('INSERT INTO pastry (type, amount) VALUES (%s, %s)', ('Cinnamon Bun', 24))
+```
+
+</li>
+
 </ul>
   
 
@@ -345,7 +338,7 @@ layout: statement
 
 ---
 
-<video src="/videos/coding-postgres-local.mp4" controls />
+<video src="/videos/python-postgres-local.mp4" controls />
 
 ---
 
@@ -358,40 +351,34 @@ layout: statement
 - Little or no impact on startup time
 
 ## Drawbacks
-- Needs cleanup, which can (and will) fail to clean up everything
 - Needs external resources to be available
+- Needs cleanup, which can (and will) fail to clean up everything
 
 ---
 
 # No Cleanup => Test Databases Left Behind
 
-```java
-@BeforeEach
-void setUpDataSource() throws SQLException {
-    dataSource = new PGSimpleDataSource();
-    dataSource.setDatabaseName("postgres");
-    var dbName = "test_db_" + System.nanoTime();
-    try (var connection = dataSource.getConnection();
-        var statement = connection.createStatement()) {
-        statement.execute("CREATE DATABASE " + dbName);
-    }
-    dataSource.setDatabaseName(dbName);
-}
+```python
+@pytest.fixture
+def connection():
+    connection = psycopg.connect("dbname=postgres user=postgres password=postgres")
+    db_name = "test_db_" + str(round(time.time() * 1e6))
+    connection.execute(f"CREATE DATABASE {db_name}")
+    return psycopg.connect(f"dbname='{db_name}' user=postgres password=postgres")
 ```
 
 ---
 
 # No Cleanup => Test Databases Left Behind
 
-```java
-@AfterEach
-void cleanUpTestDatabase() throws SQLException {
-    dataSource.setDatabaseName("postgres");
-    try (var connection = dataSource.getConnection();
-        var statement = connection.createStatement()) {
-        statement.execute("DROP DATABASE " + dbName);
-    }
-}
+```python {all|6|7}
+@pytest.fixture
+def connection():
+    connection = psycopg.connect("dbname=postgres user=postgres password=postgres")
+    db_name = "test_db_" + str(round(time.time() * 1e6))
+    connection.execute(f"CREATE DATABASE {db_name}")
+    yield psycopg.connect(f"dbname='{db_name}' user=postgres password=postgres")
+    connection.execute(f"DROP DATABASE {db_name}")
 ```
 
 ---
@@ -410,7 +397,7 @@ void cleanUpTestDatabase() throws SQLException {
 
 ---
 
-<video src="/videos/coding-postgres-container.mp4" controls />
+<video src="/videos/python-postgres-container.mp4" controls />
 
 ---
 
@@ -420,13 +407,34 @@ void cleanUpTestDatabase() throws SQLException {
 - Very close to production environment
 - Testing remains simple regardless of query complexity
 - Test data can be collected from real environment
+- Tests can be round-trip
 
 ## Drawbacks
+- Requires container runtime
 - Increased startup time
 
 <!--
  Postgres container starts in about a second
 -->
+
+---
+
+# Round-trip Testing
+
+```python {all|12}
+def test_that_psql_repository_stores_pastry_correctly(psql_connection):
+    # Given a psql repository
+    repo = PsqlPastryRepository(psql_connection)
+
+    # and a pastry to store
+    pastry = Pastry("Cinnamon Bun", 24)
+
+    # When the pastry is stored
+    repo.store(pastry)
+
+    # Then it can be retrieved again
+    assert repo.get("Cinnamon Bun") == pastry
+```
 
 ---
 
@@ -483,8 +491,10 @@ layout: center
 - Very close to production environment
 - Testing remains simple regardless of query complexity
 - Test data can be collected from real environment
+- Tests can be round-trip
 
 ## Drawbacks
+- Requires container runtime
 - Increased startup time
 
 ---
@@ -504,9 +514,8 @@ layout: center
 ---
 
 # Technology List
-- AssertJ - Fluent assertions in Java
-- Mockito - Mocking, stubbing and verifying interactions
-- MockServer - Mocking and verifying HTTP(S) services
+- UnitTest - Mocking, stubbing and verifying interactions
+- HTTPretty - Mocking and verifying HTTP(S) services
 - TestContainers - Controlling temporary, local services in containers for test and verification
 
 ---
